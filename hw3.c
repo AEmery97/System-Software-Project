@@ -1,22 +1,17 @@
-// COP 3402 - Systems Software
-// 3-24-17 | Austin Peace & Andrew Emery
-// Programming Assignment 3 - Parser/CodeGenerator
-
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include "Compiler.h"
 
-// STRUCTURES, PROTOTYPES, & ENUMERATIONS.
 typedef struct
 {
-	int kind;	//const = 1, var = 2, proc = 3
+	int kind;	//const = 1, var = 2, proc = 3 
 	char name[11];	//name up to 10 chars
 	int val;	//numbers(ASCII value)
 	int level;	//L level
 	int addr;	//M address
-} symbol;
+}symbol;
 
 char** code;
 int lineNumber;
@@ -27,40 +22,26 @@ int tokenIndex;
 symbol symbolTable[MAX_SYMBOLS];
 int symbolTableSize;
 
-char* getIdentName();
-int getToken();
-int addSymbolToTable(char* name, int type, int value);
 int block();
+int getToken();
 int statement();
 int condition();
 int expression();
 int term();
 int factor();
 int identExists();
-
-typedef enum {
-nulsym = 1, identsym, numbersym, plussym, minussym,
-multsym,  slashsym, oddsym, eqsym, neqsym, lessym, leqsym,
-gtrsym, geqsym, lparentsym, rparentsym, commasym, semicolonsym,
-periodsym, becomessym, beginsym, endsym, ifsym, thensym,
-whilesym, dosym, callsym, constsym, varsym, procsym, writesym,
-readsym , elsesym } token_type;
-
-typedef enum {
-wrongdef = 1,
-
 void error(int code);
 
 void error(int code)
-{
-	printf("ERROR: ");
+{	
+	printf("ERROR:");
 	switch(code)
 	{
 		case 1:
 			printf("Use = instead of :=. (code:%d)\n", code);
 			break;
 		case 2:
-			printf("'=' must be followed by a number.(code:%d)\n", code);
+			printf("= must be followed by a number.(code:%d)\n", code);
 			break;
 		case 3:
 			printf("Identifier must be followed by =.(code:%d)\n", code);
@@ -79,76 +60,65 @@ void error(int code)
 			break;
 		default:
 			printf("Unrecognized Error (code:%d)\n", code);
-	}
+	} 
 }
 
-// MAIN PROGRAM.
 int main(int argc, char* argv[])
 {
-	// Local variables.
 	int tokensFlag = 0;
-	int assemblyFlag = 0;
+	int assemblyFlag = 0; 
 	int printVMFlag = 0;
 	int i;
 	char* filename;
 	symbolTableSize = 0;
 	tokenIndex = 0;
 
-	// Get program arguments.
 	for(i = 0; i < argc; i++)
 	{
-		// Output tokens to terminal.
-		if (strcmp(argv[i], "-l") == 0)
+		if(strcmp(argv[i], "-l") == 0)
 			tokensFlag = 1;
-
-		// Output assembly code to terminal.
-		else if (strcmp(argv[i],"-a") == 0)
+		else if(strcmp(argv[i],"-a") == 0)
 			assemblyFlag = 1;
-
-		// Output VM execution trace to terminal.
-		else if (strcmp(argv[i],"-v") == 0)
+		else if(strcmp(argv[i],"-v") == 0)
 			printVMFlag = 1;
 		else
-			tokens = convert2Tokens(argv[i]); /** ADD ARGUMENT TO DISABLE/ENABLE OUTPUTS **/
+			tokens = convert2Tokens(argv[i]);
 	}
 
-	// Get length of token string.
 	int toklen = strlen(tokens);
-
-	// Print each token.
+	
 	for(i = 0; i < toklen; i++)
 		printf("%c", tokens[i]);
-	printf("\n");
-
-	// Get next token.
+	printf("\n");	
+	
 	getToken();
 
-	// Run block. Detect any errors in syntax during procedure.
 	if(!block())
 		printf("YAY NO ERRORS!\n");
-
+	
 	return 0;
 }
 
-// Gets identifier name from tokens and returns it.
+// used to get the identifier name from tokens and return it
 char* getIdentName()
 {
 	char* name = malloc(sizeof(char)* 11);
 	int tokLen = strlen(tokens);
 	int i = 0;
 	char buffer[10];
-
-	// Error: No identifier!
+	
+	//no identifier!
 	if(!isalpha(tokens[tokenIndex]))
 	{ error(4); return NULL;}
 
-	// Error: Name shouldn't be longer than 11.
+	//shouldnt be more than 11 i think the lexi takes care of it
 	while(isalpha(tokens[tokenIndex + i]))
 	{
 		name[i] = tokens[tokenIndex + i];
 
 		i++;
 	}
+	
 
 	tokenIndex += i + 1;
 
@@ -156,33 +126,31 @@ char* getIdentName()
 
 	i = 0;
 
-    // Read string into buffer.
 	while(tokens[tokenIndex + i] != ' ')
 	{
 		buffer[i] = tokens[tokenIndex + i];
 		i++;
 	}
-
+	
 	buffer[i] = '\0';
 
 	tokenIndex += i + 1;
+	
 
 	printf("I: [%c]\n", tokens[tokenIndex]);
-
+		
 	token = atoi(buffer);
 
 	return name;
 }
 
-// Returns -1 if at end of tokens array.
+// returns -1 if at end of tokens array
 int getToken()
 {
-    // Local variables.
 	int tokLen = strlen(tokens);
 	int i = 0;
 	char num[10];
 
-    // Read tokenized string.
 	while(tokens[tokenIndex + i] != ' ')
 	{
 		num[i] = tokens[tokenIndex + i];
@@ -191,111 +159,111 @@ int getToken()
 	num[i] = '\0';
 
 	token = atoi(num);
-
-	i++; //move past space
-
+	
+	i++;//move past space
+	
 	if(tokenIndex + i < tokLen)
 		tokenIndex+= i;
 	else
 		return -1;
-
+	
 	return 0;
 }
 
-// Incorporates next symbol into the symbol table.
 int addSymbolToTable(char* name, int type, int value)
 {
-	printf("HOLLA\n");
 	strcpy(symbolTable[symbolTableSize].name, name);
+
 	symbolTable[symbolTableSize].kind = type;
+
 	symbolTable[symbolTableSize].val = value;//check to see if number is within range
-	printf("HOLLA\n");
+
 	symbolTableSize++;
+
 	free(name);
+
 	return 0;
 }
 
-// Block procedure.
 int block()
 {
-    // Character name.
 	char* identName;
+	//should probably check for begins statement
 
-	if(token == constsym)
+	if(token == 28)//constsym
 	{
-		do
+		do 
 		{
 			getToken();
 
-			if(token != identsym)
+			if(token != 2) // identsym
 			{ error(4); return -1;}
-
+			
 			identName = getIdentName();
-
+			
 			printf("TOKEN BOYS:%d %s\n", token, identName);
 
-			if(token != eqsym)
+			if(token != 9) //eqsym
 			{ error(3); return -1;}
-
-			getToken();
-
-			// check if token is letter and return value.
+			
+			getToken();// check if isalpha in here and return value 
+			
 			if(isalpha(token))
 			{ error(2); return -1;}
+			
+			addSymbolToTable(identName, 1, token);//add a const to the table
 
-			addSymbolToTable(identName, 1, token); // Add const to the table.
+			getToken();		
 
-			getToken();
-
-		} while(token == commasym);
-
+		} while(token == 17);//commasym
+		
 		getToken();
 	}
-	if(token == varsym)
+	if(token == 29)//intsym == varsym
 	{
 		do
 		{
 			getToken();
-
-			if(token != identsym)
+			
+			if(token != 2) //identsym
 			{ error(4); return -1;}
-
+			
 			identName = getIdentName();
 
-			addSymbolToTable(identName, 2, 0); // Add variable to table.
-
-		} while(token == commasym);
-
-		if(token != semicolonsym)
+			addSymbolToTable(identName, 2, 0); // add variable to table
+			
+		} while(token == 17); // comma
+		
+		if(token != 18) // semicolon
 		{ error(5); return -1;}
-
-		getToken();
-	}
-	while(token == procsym)
+		
+		getToken();		
+	} 
+	while(token == 30) //procsym
 	{
 		getToken();
-
-		if(token != identsym)
+		
+		if(token != 2) //identsym
 		{ error(4); return -1;}
-
+		
 		identName = getIdentName();
-
-		addSymbolToTable(identName, 3, 0); // Add procedure to table.
+		
+		addSymbolToTable(identName, 3, 0); // add procedure to table
 
 		if(token != 18) //semicolon
 		{ error(5); return -1;}
-
+		
 		getToken();
-
+		
 		if(block() == -1)
 			return -1;
-
-		if(token != semicolonsym)
+		
+		if(token != 18) // semiColon
 		{ error(5); return -1;}
 
 		getToken();
 	}
-
+	
 	if(statement() == -1)
 		return -1;
 
@@ -306,68 +274,68 @@ int statement()
 {
 	char* identName;
 
-	if(token == identsym)
+	if(token == 2) //identsym 
 	{
-		while(token == identsym)
+		while(token == 2)
 		{
 			identName = getIdentName();
-
+		
 			printf("IDENTIFIER:%s\n", identName);
-
+		
 			if(!identExists(identName))
 			{ error(11); return -1;}
 
 			printf("TOKEN:%d\n", token);
 
-			if(token != becomessym)
+			if(token != 20) //becomessym 
 			{ error(3); return -1;}
-
+		
 			printf("CHEESE!\n");
-			getToken();
-
+			getToken(); 
+		
 			if(expression() == -1)
 				return -1;
 		}
 	}
 
-	else if(token == callsym)
+	else if(token == 27) // callsym
 	{
 		getToken();
-
-		if(token != identsym)
+		
+		if(token != 2) // identsym
 		{ error(14); return -1;}
+		
+		identName = getIdentName(); //do something with this 
 
-		identName = getIdentName(); // Get identifier name.
-
-		if(!identExists(identName)) // Check to make sure that identifier has been defined.
-		{ error(11); return -1;}
+		if(!identExists(identName))//procedure does not exist (maybe change the error message or search critera to be more specific)
+		{ error(11); return -1;} 
 	}
-	else if(token == beginsym)
+	else if(token == 21) // beginsym
 	{
 		getToken();
-
+		
 		if(statement() == -1)
 			return -1;
-
-		while(token == semicolonsym)
+		
+		while(token == 18) // semicolon
 		{
 			getToken();
-
+			
 			statement();
 		}
 		printf("TOKEN:%d\n", token);
-		if(token != endsym)
+		if(token != 22) // endsym
 		{ error(7); return -1;}
 
 		getToken();
 	}
-	else if(token == ifsym)
+	else if(token == 23) // ifsym
 	{
 		getToken();
-
+		
 		condition();
-
-		if(token != thensym)
+		
+		if(token != 24) // thensym
 		{ error(16); return -1;}
 
 		getToken();
@@ -375,17 +343,17 @@ int statement()
 		if(statement() == -1)
 			return -1;
 	}
-	else if(token == whilesym)
+	else if(token == 25) // whilesym
 	{
 		getToken();
 
 		condition();
 
-		if(token != dosym)
+		if(token != 26) // dosym
 		{ error(18); return -1;}
-
+		
 		getToken();
-
+		
 		if(statement() == -1)
 			return -1;
 	}
@@ -394,7 +362,7 @@ int statement()
 
 int condition()
 {
-	if(token == oddsym)
+	if(token == 8) // oddsym
 	{
 		getToken();
 		expression();
@@ -438,24 +406,48 @@ int condition()
 int expression()
 {
 	char* ident;
-	if(token == plussym || token == minussym)
+	while(token != 18)// while not semi colon
 	{
-		getToken();
-		term();
+		if(token == 2)
+		{
+			ident = getIdentName();
+	
+			if(!identExists(identName))
+				{ error(11); return -1;}
+	
+		}
+		else if(token == 3)
+		{
+			getToken();//should get number value
 
-		while(token == plussym || token == minussym)
+			//do assembly stuff here
+		}
+		else if(token == 15) // left parenthesis '('
+		{
+			getToken();
+			
+			factor();
+		}
+
+		if(token == 4 || token == 5) // plussym minussym
 		{
 			getToken();
 			term();
+	
+			while(token == 4 || token == 5) // plussym minussym
+			{
+				getToken();
+				term();
+			}
 		}
-	}
 
-	if(token == identsym)
-	{
-		ident = getIdentName();
+		if(token == 2)
+		{
+			ident = getIdentName();
 
-		if(!identExists(identName))
-			{ error(11); return -1;}
+			if(!identExists(ident))
+				{ error(11); return -1;}
+		}
 	}
 	return 0;
 }
@@ -463,8 +455,8 @@ int expression()
 int term()
 {
 	factor();
-
-	while(token == multsym || token == slashsym)
+	
+	while(token == 6 || token == 7) // multsym slashsym
 	{
 		getToken();
 		factor();
@@ -474,23 +466,26 @@ int term()
 
 int factor()
 {
-	if(token == identsym)
-	{
-		getToken();
-	}
-	else if(isdigit(token))
-	{
-		getToken();
-	}
-	else if(token == lparentsym)
-	{
-		getToken();
+	char* ident; 
+	int flag = 0;
 
-		expression();
+	while(token != 16)
+	{
+		if(token == 2) // identsym
+		{
+			ident = getIdentifierName();
 
-		if(token != rparentsym)
+			if(!identExists(ident))
+					{ error(11); return -1;}
+
+			
+		}
+	}
+
+		
+		if(token != 16) // rparentsym ')'
 		{ error(22); return -1;}
-
+		
 		getToken();
 	}
 	else
@@ -500,7 +495,7 @@ int factor()
 	return 0;
 }
 
-// Returns whether the identifier exists in the symbol table.
+//returns 1 if ident found 0 otherwise
 int identExists(char* ident)
 {
 	int i;
@@ -512,4 +507,5 @@ int identExists(char* ident)
 	}
 	return 0;
 }
+
 
