@@ -1,12 +1,31 @@
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
+// COP 3402 - Systems Software
+// 3-24-17 | Austin Peace & Andrew Emery
+// Programming Assignment 3 - Parser/Code Generator
+
 #include "Compiler.h"
-#include "parser.h"
+
+//stack pointer
+int sp;
+
+//max lex level
+int level;
+
+//current lex level
+int cLevel;
+
+int lineNumber;
+int columnNumber;
+char* tokens;
+int token;
+int tokenIndex;
+symbol symbolTable[MAX_SYMBOLS];
+int symbolTableSize;
+int cx; //code index
+code_struct code[MAX_CODE_LENGTH];
+int reg;
 
 void error(int code)
-{	
+{
 	printf("ERROR:");
 	switch(code)
 	{
@@ -87,12 +106,12 @@ void error(int code)
 			break;
 		default:
 			printf("Unrecognized Error (code:%d)\n", code);
-	} 
+	}
 }
 
 void emit(int op, int r, int l, int m)
 {
-	if(cx > CODE_SIZE)
+	if(cx > MAX_CODE_LENGTH)
 	{
 		error(25);
 	}
@@ -109,10 +128,9 @@ void emit(int op, int r, int l, int m)
 int main(int argc, char* argv[])
 {
 	int tokensFlag = 0;
-	int assemblyFlag = 0; 
+	int assemblyFlag = 0;
 	int printVMFlag = 0;
 	int i;
-	char* filename;
 	FILE* codeOutput;
 	symbolTableSize = 0;
 	tokenIndex = 0;
@@ -120,7 +138,7 @@ int main(int argc, char* argv[])
 	sp = 1;
 	level = cLevel = 1;
 
-	for(i = 0; i < argc; i++)
+	for(i = 1; i < argc; i++)
 	{
 		if(strcmp(argv[i], "-l") == 0)
 			tokensFlag = 1;
@@ -137,7 +155,7 @@ int main(int argc, char* argv[])
 	{
 		printf("YAY no error!\n");
 	}
-		
+
 	codeOutput = fopen("assembly.txt", "w");
 
 	for(i = 0; i < cx; i++)
@@ -154,12 +172,12 @@ int program()
 
 	if(block())
 		return -1;
-	
+
 	getToken();
-	
+
 	if(token != periodsym)
 		{ error(9); return -1;}
-	
+
 	emit(rtn, 0, 0, 0);// im pretty sure this should be return
 }
 
@@ -170,7 +188,7 @@ char* getIdentName()
 	int tokLen = strlen(tokens);
 	int i = 0;
 	char buffer[10];
-	
+
 	//no identifier!
 	if(!isalpha(tokens[tokenIndex]))
 	{ error(4); return NULL;}
@@ -182,7 +200,7 @@ char* getIdentName()
 
 		i++;
 	}
-	
+
 
 	tokenIndex += i + 1;
 
@@ -195,14 +213,14 @@ char* getIdentName()
 		buffer[i] = tokens[tokenIndex + i];
 		i++;
 	}
-	
+
 	buffer[i] = '\0';
 
 	tokenIndex += i + 1;
-	
+
 
 	printf("I: [%c]\n", tokens[tokenIndex]);
-		
+
 	token = atoi(buffer);
 
 	return name;
@@ -223,14 +241,14 @@ int getToken()
 	num[i] = '\0';
 
 	token = atoi(num);
-	
+
 	i++;//move past space
-	
+
 	if(tokenIndex + i < tokLen)
 		tokenIndex+= i;
 	else
 		return -1;
-	
+
 	return 0;
 }
 
@@ -243,9 +261,9 @@ int addSymbolToTable(char* name, int type, int value, int l, int m)
 	symbolTable[symbolTableSize].val = value;//check to see if number is within range
 
 	symbolTable[symbolTableSize].level = l;
-	
-	symbolTable[symbolTableSize].addr = m;	
-	
+
+	symbolTable[symbolTableSize].addr = m;
+
 	symbolTableSize++;
 
 	free(name);
@@ -256,45 +274,45 @@ int addSymbolToTable(char* name, int type, int value, int l, int m)
 int block()
 {
 	char* identName;
-	
+
 	sp = 3;
 
-	int space = 4; 
+	int space = 4;
 	int procI; // procedure index
 
 	int jumpAddress = cx;
-	
+
 	emit(jmp, 0, 0, 0);
 
 	if(token == constsym)//constsym
 	{
-		do 
+		do
 		{
 			getToken();
 
 			if(token != identsym) // identsym
 			{ error(4); return -1;}
-			
+
 			identName = getIdentName();
 
 			if(token != eqlsym) //eqsym
 			{ error(3); return -1;}
-			
-			getToken();// check if isalpha in here and return value 
-			
+
+			getToken();// check if isalpha in here and return value
+
 			if(token != numbersym) // number
 			{ error(2); return -1;}
-			
+
 			getToken();
-			
+
 			addSymbolToTable(identName, 1, token, 0, 0);//add a const to the table
 
-			getToken();		
+			getToken();
 
 		} while(token == 17);//commasym
 
 		//check for ;<------------------------------------------------------------------------------------
-		
+
 		getToken();
 	}
 	if(token == varsym)//intsym == varsym
@@ -302,45 +320,45 @@ int block()
 		do
 		{
 			getToken();
-			
+
 			if(token != identsym) //identsym
 			{ error(4); return -1;}
-			
+
 			identName = getIdentName();
 
 			addSymbolToTable(identName, 2, 0, level, sp); // add variable to table
-			
+
 			space++;
 
 			sp++;
-			
+
 		} while(token == commasym); // comma
-		
+
 		if(token != semicolonsym) // semicolon
 		{ error(5); return -1;}
-		
-		getToken();		
-	} 
+
+		getToken();
+	}
 	while(token == procsym) //procsym
 	{
 		getToken();
-		
+
 		if(token != identsym) //identsym
 		{ error(4); return -1;}
-		
+
 		identName = getIdentName();
-		
+
 //CHECK TO SEE IF THIS IS RIGHT!!!
 		addSymbolToTable(identName, 3, 0, level, jumpAddress + 1); // add procedure to table
 
 		if(token != semicolonsym) //semicolon
 		{ error(5); return -1;}
-		
+
 		getToken();
-		
+
 		if(block() == -1)
 			return -1;
-		
+
 		if(token != semicolonsym) // semiColon
 		{ error(5); return -1;}
 
@@ -348,7 +366,7 @@ int block()
 	}
 
 	code[jumpAddress].m = cx;
-	
+
 	if(statement() == -1)
 		return -1;
 
@@ -363,7 +381,7 @@ int statement()
 	int index;
 	int cTemp;
 
-	if(token == 2) //identsym 
+	if(token == 2) //identsym
 	{
 		identName = getIdentName();
 
@@ -373,24 +391,24 @@ int statement()
 			{ error(11); return -1;}
 		else if(symbolTable[index].kind == 1 || symbolTable[index].kind == 3) 	// if const or procedure
 			{ error(12); return -1;}
-		
-		if(token != becomessym) //becomessym 
+
+		if(token != becomessym) //becomessym
 			{ error(3); return -1;}
-	
-		getToken(); 
+
+		getToken();
 
 		if(expression() == -1)
 			return -1;
 
 		emit(sto, reg - 1, cLevel - symbolTable[index].level, symbolTable[index].addr - 1);
-		
+
 		reg--;
 	}
 
 	else if(token == callsym) // callsym
 	{
 		getToken();
-		
+
 		if(token != identsym) // identsym
 		{ error(14); return -1;}
 
@@ -402,51 +420,51 @@ int statement()
 			{ error(11); return -1;}
 		else if(symbolTable[index].kind == 1 || symbolTable[index].kind == 2) 	// if const or var
 			{ error(15); return -1;}
-		
+
 		emit(cal, 0, level, symbolTable[index].addr);
 		cLevel++;
-		
+
 	}
 	else if(token == beginsym) // beginsym
 	{
 		getToken();
-		
+
 		if(statement() == -1)
 			return -1;
-		
+
 		while(token == semicolonsym) // semicolon
 		{
 			getToken();
-			
+
 			statement();
-			
+
 		}
 		printf("TOKEN:%d\n", token);
 		if(token != endsym) // endsym
 		{ error(7); return -1;}
-		
+
 		getToken();
 	}
 	else if(token == ifsym) // ifsym
 	{
 		getToken();
-		
+
 		condition();
-		
+
 		if(token != thensym) // thensym
 		{ error(16); return -1;}
 
 		getToken();
-		
+
 		cTemp = cx;
-		
+
 		emit(jpc, reg - 1, 0, 0);
 
 		if(statement() == -1)
 			return -1;
 
 		//ADD IN ELSE?
-		
+
 		code[cTemp].m = cx;
 	}
 	else if(token == whilesym) // whilesym
@@ -456,21 +474,21 @@ int statement()
 		getToken();
 
 		condition();
-		
+
 		cx2 = cx;
 
 		emit(jpc, reg-1, 0, 0);
 
 		if(token != dosym) // dosym
 		{ error(18); return -1;}
-		
+
 		getToken();
-		
+
 		if(statement() == -1)
 			return -1;
-		
+
 		emit(jmp, 0, 0, cx1);
-		
+
 		reg--;
 
 	}
@@ -481,7 +499,7 @@ int condition()
 {
 	char* ident;
 	int operator;
-	
+
 	if(token == oddsym) // oddsym
 	{
 		getToken();
@@ -509,7 +527,7 @@ int condition()
 int expression()
 {
 	int addop;
-	
+
 	if(token == 4 || token == 5)// plussym minussym
 	{
 		addop = token;
@@ -530,7 +548,7 @@ int expression()
 			emit(add, reg - 2, reg - 2, reg - 1);
 		else
 			emit(sub, reg - 2, reg - 2, reg - 1);
-		
+
 		reg--;
 	}
 
@@ -542,7 +560,7 @@ int term()
 	int mulop;
 
 	factor();
-	
+
 	while(token == 6 || token == 7) // multsym slashsym
 	{
 		mulop = token;
@@ -559,38 +577,38 @@ int term()
 
 int factor()
 {
-	char* ident; 
+	char* ident;
 	int flag = 0;
 	int index;
 
 	if(token == 2) //identsym
 	{
 		ident = getIdentName();
-		
+
 		index = identExists(ident);
-	
+
 		if(index == -1)
 			{ error(11); return -1;}
 		else if(symbolTable[index].kind == 3) 	// if procedure
 			{ error(21); return -1;}
-		
+
 		if(symbolTable[index].kind == 2)
 			emit(lod, reg, 0, symbolTable[index].val);
 		else if(symbolTable[index].kind == 1)
 			emit(lit, reg, 0, symbolTable[index].val);
 
 		reg++;
-		
+
 	}
 	else if(token == 3) // number
 	{
 		getToken();
-		
+
 		emit(lit, reg, 0, token);
-		
+
 		reg++;
-		
-		getToken();//get to semi colon	
+
+		getToken();//get to semi colon
 	}
 	else if(token == 15) // (
 	{
@@ -603,11 +621,11 @@ int factor()
 			{ error(22); return -1;}
 		getToken();
 	}
-	else 
+	else
 	{
 		error(1);//idk what code to put here
 		return -1;
-	}	
+	}
 
 	return 0;
 }
@@ -636,7 +654,7 @@ int rOp()
 			return geq;  // 24 GEQ
 			break;
 		default:
-			return 0;	
+			return 0;
 	}
 }
 

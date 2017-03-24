@@ -2,57 +2,9 @@
 // 3-24-17 | Austin Peace & Andrew Emery
 // Programming Assignment 2 - Scanner
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-
-#define TOKEN_BUFFER 100000
-#define MAX_SOURCE_FILE 5000
-#define MAX_WORD_SIZE 12
-#define MAX_NUM_SIZE 6
-#define RESERVED_WORDS 14
-#define RESERVED_SYMBOLS 13
-#define ASCII_A 65
-#define ASCII_Z 90
-#define ASCII_LA 97
-#define ASCII_LZ 122
-#define ASCII_0 48
-#define ASCII_9 57
+#include "Compiler.h"
 
 // PROTOYPES, STRUCTURES AND PARAMETERS.
-
-/* NOTE: THIS CODE BORROWED FROM ASSIGNMENT SPECIFICATIONS */
-typedef struct {
-	int kind; 		// const = 1, var = 2, proc = 3
-	char name[MAX_WORD_SIZE];	// name up to 11 chars
-	int val; 		// number (ASCII value)
-	int level; 		// L level
-	int addr; 		// M address
-    } symbol;
-
-/* NOTE: THIS CODE BORROWED FROM ASSIGNMENT SPECIFICATIONS */
-enum bool {false, true};
-
-typedef enum {
-nulsym = 1, identsym, numbersym, plussym, minussym,
-multsym,  slashsym, oddsym, eqsym, neqsym, lessym, leqsym,
-gtrsym, geqsym, lparentsym, rparentsym, commasym, semicolonsym,
-periodsym, becomessym, beginsym, endsym, ifsym, thensym,
-whilesym, dosym, callsym, constsym, varsym, procsym, writesym,
-readsym , elsesym } token_type;
-
-char* inReader();
-void printBuffer(char* buffer, int length);
-void clean(char* buffer, int buffersize);
-void report(char* stream);
-int invalid(char value);
-int isLetter(char value);
-int isDigit(char value);
-void tokenWord(int word_id, char* buffer);
-void tokenNum(char* buffer, int length);
-void tokenSym(int sym_id);
-
 
 // GLOBALS (I.E. PROGRAMMER LAZINESS).
 const char* errors[] = {"Variable does not start with letter.", "Number too long.", "Name too long.", "Invalid symbols detected."};
@@ -62,10 +14,9 @@ char* tokenstream; // Storage for token output.
 int token_index = 0;
 int error_code[4] = {0};
 FILE *fp = NULL; // File pointer for input.
-char *filename; // File name.
 
 // MAIN EXECUTION.
-int main() {
+char* convert2Tokens(char* fileName) {
     // Local variables.
     int n;
     char* sourceBuffer;
@@ -73,13 +24,10 @@ int main() {
     tokenstream = malloc(TOKEN_BUFFER*sizeof(char));
 
     // Read input file into code store. If it fails, notify the user.
-    filename = malloc(sizeof(char)*FILENAME_MAX);
-    printf("\nEnter file name: ");
-    scanf("%s", filename);
-    fp = fopen(filename, "r");
+    fp = fopen(fileName, "r");
     if (fp == NULL) {
-        printf("\nERROR: Unable to locate file specified! Check local directory.");
-        return 0;
+        printf("\n\nERROR: Unable to locate source file specified! Check local directory.");
+        return NULL;
     }
 
     // Read the input source file, and populate the symbol table with the program's contents.
@@ -100,15 +48,14 @@ int main() {
             free(sourceBuffer);
             free(tokenstream);
             tokenstream = NULL;
-            return -1;
         }
     }
     // If no errors have been discovered, read finalized input/tokens.
-    report(tokenstream);
+    //report(tokenstream);
 
     fclose(fp);
 
-    return 0;
+    return tokenstream;
 }
 
 // FUNCTIONS.
@@ -301,7 +248,7 @@ void clean(char* buffer, int buffersize) {
                                 break;
 
                             case '=':
-                                tokenSym(eqsym);
+                                tokenSym(eqlsym);
                                 break;
 
                             case ',':
