@@ -1,6 +1,6 @@
 // COP 3402 - Systems Software
 // 3-24-17 | Austin Peace & Andrew Emery
-// Programming Assignment 2 - Parser/CodeGenerator
+// Programming Assignment 2 - Scanner
 
 #include <stdio.h>
 #include <stdlib.h>
