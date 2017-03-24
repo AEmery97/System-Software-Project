@@ -3,46 +3,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "Compiler.h"
-
-typedef struct
-{
-	int kind;	//const = 1, var = 2, proc = 3 
-	char name[11];	//name up to 10 chars
-	int val;	//numbers(ASCII value)
-	int level;	//L level
-	int addr;	//M address
-}symbol;
-
-typedef enum
-{
-	nulsym = 1, identsym = 2, numbersym = 3, plussym = 4, minussym = 5, multsym = 6,  slashsym = 7,
-	oddsym = 8,  eqlsym = 9, neqsym = 10, lessym = 11, leqsym = 12, gtrsym = 13, geqsym = 14, 
-	lparentsym = 15, rparentsym = 16, commasym = 17, semicolonsym = 18, periodsym = 19, 
-	becomessym = 20, beginsym = 21, endsym = 22, ifsym = 23, thensym = 24, whilesym = 25, 
-	dosym = 26, callsym = 27, constsym = 28, varsym = 29, procsym = 30, writesym = 31, 
-	readsym = 32, elsesym = 33
-
-} token_type;
-
-char** code;
-int lineNumber;
-int columnNumber;
-char* tokens;
-int token;
-int tokenIndex;
-symbol symbolTable[MAX_SYMBOLS];
-int symbolTableSize;
-
-int block();
-int getToken();
-int statement();
-int condition();
-int expression();
-int term();
-int factor();
-int identExists();
-int rOp();
-void error(int code);
+#include "parser.h"
 
 void error(int code)
 {	
@@ -56,23 +17,93 @@ void error(int code)
 			printf("= must be followed by a number.(code:%d)\n", code);
 			break;
 		case 3:
-			printf("Identifier must be followed by =.(code:%d)\n", code);
+			printf("Identifier must be followed by =. (code:%d)\n", code);
 			break;
 		case 4:
-			printf("const, var, procedure must be followed by identifier.(code:%d)\n", code);
+			printf("const, var, procedure must be followed by identifier. (code:%d)\n", code);
 			break;
 		case 5:
-			printf("Semicolon or comma missing.(code:%d)\n", code);
+			printf("Semicolon or comma missing. (code:%d)\n", code);
 			break;
 		case 6:
-			printf("6. Incorrect symbol after procedure declaration.(code:%d)\n", code);
+			printf("6. Incorrect symbol after procedure declaration. (code:%d)\n", code);
 			break;
 		case 7:
 			printf("7. Statement expected.(code:%d)\n", code);
 			break;
+		case 8:
+			printf("Incorrect symbol after statement part in block. (code:%d)\n", code);
+			break;
+		case 9:
+			printf("Period expected. (code:%d)\n", code);
+			break;
+		case 10:
+			printf("Semicolon between statements missing. (code:%d)\n", code);
+			break;
+		case 11:
+			printf("Undeclared identifier. (code:%d)\n", code);
+			break;
+		case 12:
+			printf("Assignment to constant or procedure is not allowed. (code:%d)\n", code);
+			break;
+		case 13:
+			printf("Assignment operator expected. (code:%d)\n", code);
+			break;
+		case 14:
+			printf("Call must be followed by an identifier. (code:%d)\n", code);
+			break;
+		case 15:
+			printf("Call of a constant or variable is meaningless. (code:%d)\n", code);
+			break;
+		case 16:
+			printf("Then expected.(code:%d)\n", code);
+			break;
+		case 17:
+			printf("Semicolon or } expected. (code:%d)\n", code);
+			break;
+		case 18:
+			printf("Do expected. (code:%d)\n", code);
+			break;
+		case 19:
+			printf("Incorrect symbol following statement. (code:%d)\n", code);
+			break;
+		case 20:
+			printf("Relational operator expected. (code:%d)\n", code);
+			break;
+		case 21:
+			printf("Expression must not contain a procedure identifier. (code:%d)\n", code);
+			break;
+		case 22:
+			printf("Right parenthesis missing. (code:%d)\n", code);
+			break;
+		case 23:
+			printf("The preceding factor cannot begin with this symbol. (code:%d)\n", code);
+			break;
+		case 24:
+			printf("An expression cannot begin with this symbol. (code:%d)\n", code);
+			break;
+		case 25:
+			printf("This number is too large. (code:%d)\n", code);
+			break;
 		default:
 			printf("Unrecognized Error (code:%d)\n", code);
 	} 
+}
+
+void emit(int op, int r, int l, int m)
+{
+	if(cx > CODE_SIZE)
+	{
+		error(25);
+	}
+	else
+	{
+		code[cx].op = op;
+		code[cx].r = r;
+		code[cx].l = l;
+		code[cx].m = m;
+		cx++;
+	}
 }
 
 int main(int argc, char* argv[])
@@ -82,8 +113,12 @@ int main(int argc, char* argv[])
 	int printVMFlag = 0;
 	int i;
 	char* filename;
+	FILE* codeOutput;
 	symbolTableSize = 0;
 	tokenIndex = 0;
+	cx = 0;
+	sp = 1;
+	level = cLevel = 1;
 
 	for(i = 0; i < argc; i++)
 	{
@@ -97,18 +132,35 @@ int main(int argc, char* argv[])
 			tokens = convert2Tokens(argv[i]);
 	}
 
-	int toklen = strlen(tokens);
-	
-	for(i = 0; i < toklen; i++)
-		printf("%c", tokens[i]);
-	printf("\n");	
-	
+	//if no error
+	if(!program())
+	{
+		printf("YAY no error!\n");
+	}
+		
+	codeOutput = fopen("assembly.txt", "w");
+
+	for(i = 0; i < cx; i++)
+	{
+		fprintf(codeOutput, "%d %d %d %d\n", code[i].op, code[i].r, code[i].m, code[i].l);
+	}
+	fclose(codeOutput);
+	return 0;
+}
+
+int program()
+{
 	getToken();
 
-	if(!block())
-		printf("YAY NO ERRORS!\n");
+	if(block())
+		return -1;
 	
-	return 0;
+	getToken();
+	
+	if(token != periodsym)
+		{ error(9); return -1;}
+	
+	emit(rtn, 0, 0, 0);// im pretty sure this should be return
 }
 
 // used to get the identifier name from tokens and return it
@@ -182,7 +234,7 @@ int getToken()
 	return 0;
 }
 
-int addSymbolToTable(char* name, int type, int value)
+int addSymbolToTable(char* name, int type, int value, int l, int m)
 {
 	strcpy(symbolTable[symbolTableSize].name, name);
 
@@ -190,6 +242,10 @@ int addSymbolToTable(char* name, int type, int value)
 
 	symbolTable[symbolTableSize].val = value;//check to see if number is within range
 
+	symbolTable[symbolTableSize].level = l;
+	
+	symbolTable[symbolTableSize].addr = m;	
+	
 	symbolTableSize++;
 
 	free(name);
@@ -200,7 +256,15 @@ int addSymbolToTable(char* name, int type, int value)
 int block()
 {
 	char* identName;
-	//should probably check for begins statement
+	
+	sp = 3;
+
+	int space = 4; 
+	int procI; // procedure index
+
+	int jumpAddress = cx;
+	
+	emit(jmp, 0, 0, 0);
 
 	if(token == constsym)//constsym
 	{
@@ -212,8 +276,6 @@ int block()
 			{ error(4); return -1;}
 			
 			identName = getIdentName();
-			
-			printf("TOKEN BOYS:%d %s\n", token, identName);
 
 			if(token != eqlsym) //eqsym
 			{ error(3); return -1;}
@@ -225,11 +287,13 @@ int block()
 			
 			getToken();
 			
-			addSymbolToTable(identName, 1, token);//add a const to the table
+			addSymbolToTable(identName, 1, token, 0, 0);//add a const to the table
 
 			getToken();		
 
 		} while(token == 17);//commasym
+
+		//check for ;<------------------------------------------------------------------------------------
 		
 		getToken();
 	}
@@ -244,7 +308,11 @@ int block()
 			
 			identName = getIdentName();
 
-			addSymbolToTable(identName, 2, 0); // add variable to table
+			addSymbolToTable(identName, 2, 0, level, sp); // add variable to table
+			
+			space++;
+
+			sp++;
 			
 		} while(token == commasym); // comma
 		
@@ -262,7 +330,8 @@ int block()
 		
 		identName = getIdentName();
 		
-		addSymbolToTable(identName, 3, 0); // add procedure to table
+//CHECK TO SEE IF THIS IS RIGHT!!!
+		addSymbolToTable(identName, 3, 0, level, jumpAddress + 1); // add procedure to table
 
 		if(token != semicolonsym) //semicolon
 		{ error(5); return -1;}
@@ -277,9 +346,13 @@ int block()
 
 		getToken();
 	}
+
+	code[jumpAddress].m = cx;
 	
 	if(statement() == -1)
 		return -1;
+
+	cLevel--;
 
 	return 0;
 }
@@ -287,21 +360,31 @@ int block()
 int statement()
 {
 	char* identName;
+	int index;
+	int cTemp;
 
 	if(token == 2) //identsym 
 	{
 		identName = getIdentName();
-	
-		if(!identExists(identName))
-		{ error(11); return -1;}
 
+		index = identExists(identName);
+
+		if(index == -1)
+			{ error(11); return -1;}
+		else if(symbolTable[index].kind == 1 || symbolTable[index].kind == 3) 	// if const or procedure
+			{ error(12); return -1;}
+		
 		if(token != becomessym) //becomessym 
-		{ error(3); return -1;}
+			{ error(3); return -1;}
 	
 		getToken(); 
 
 		if(expression() == -1)
 			return -1;
+
+		emit(sto, reg - 1, cLevel - symbolTable[index].level, symbolTable[index].addr - 1);
+		
+		reg--;
 	}
 
 	else if(token == callsym) // callsym
@@ -310,11 +393,19 @@ int statement()
 		
 		if(token != identsym) // identsym
 		{ error(14); return -1;}
-		
+
 		identName = getIdentName();
 
-		if(!identExists(identName))//procedure does not exist (maybe change the error message or search critera to be more specific)
-		{ error(11); return -1;} 
+		index = identExists(identName);
+
+		if(index == -1)
+			{ error(11); return -1;}
+		else if(symbolTable[index].kind == 1 || symbolTable[index].kind == 2) 	// if const or var
+			{ error(15); return -1;}
+		
+		emit(cal, 0, level, symbolTable[index].addr);
+		cLevel++;
+		
 	}
 	else if(token == beginsym) // beginsym
 	{
@@ -346,15 +437,29 @@ int statement()
 		{ error(16); return -1;}
 
 		getToken();
+		
+		cTemp = cx;
+		
+		emit(jpc, reg - 1, 0, 0);
 
 		if(statement() == -1)
 			return -1;
+
+		//ADD IN ELSE?
+		
+		code[cTemp].m = cx;
 	}
 	else if(token == whilesym) // whilesym
 	{
+		int cx1 = cx;
+		int cx2;
 		getToken();
 
 		condition();
+		
+		cx2 = cx;
+
+		emit(jpc, reg-1, 0, 0);
 
 		if(token != dosym) // dosym
 		{ error(18); return -1;}
@@ -363,6 +468,11 @@ int statement()
 		
 		if(statement() == -1)
 			return -1;
+		
+		emit(jmp, 0, 0, cx1);
+		
+		reg--;
+
 	}
 	return 0;
 }
@@ -370,22 +480,28 @@ int statement()
 int condition()
 {
 	char* ident;
+	int operator;
 	
 	if(token == oddsym) // oddsym
 	{
 		getToken();
 
 		expression();
+
+		emit(odd, reg - 1, reg - 1, 0);
 	}
 	else
 	{
 		expression();
-		
-		if(!rOp())
+		operator = rOp();
+		if(!operator)
 			{error(13); return -1;}
 
 		getToken();
 		expression();
+
+		emit(operator, reg - 2, reg - 2, reg - 1);
+		reg--;
 	}
 	return 0;
 }
@@ -399,11 +515,8 @@ int expression()
 		addop = token;
 		getToken();
 		term();
-		while(token == 6 || token == 7)
-		{
-			getToken();
-			term();
-		}
+		if(addop == minussym)
+			emit(neg, reg - 1, reg - 1, 0);
 	}
 	else
 		term();
@@ -413,7 +526,12 @@ int expression()
 		addop = token;
 		getToken();
 		term();
-		//assembly stuff here
+		if(addop == plussym)
+			emit(add, reg - 2, reg - 2, reg - 1);
+		else
+			emit(sub, reg - 2, reg - 2, reg - 1);
+		
+		reg--;
 	}
 
 	return 0;
@@ -421,12 +539,20 @@ int expression()
 
 int term()
 {
+	int mulop;
+
 	factor();
 	
 	while(token == 6 || token == 7) // multsym slashsym
 	{
+		mulop = token;
 		getToken();
 		factor();
+		if(mulop == multsym)
+			emit(mul, reg - 2, reg - 2, reg - 1);//multiplication
+		else
+			emit(dvd, reg - 2, reg - 2, reg - 1);//division
+		reg--;
 	}
 	return 0;
 }
@@ -435,14 +561,34 @@ int factor()
 {
 	char* ident; 
 	int flag = 0;
+	int index;
 
 	if(token == 2) //identsym
 	{
 		ident = getIdentName();
+		
+		index = identExists(ident);
+	
+		if(index == -1)
+			{ error(11); return -1;}
+		else if(symbolTable[index].kind == 3) 	// if procedure
+			{ error(21); return -1;}
+		
+		if(symbolTable[index].kind == 2)
+			emit(lod, reg, 0, symbolTable[index].val);
+		else if(symbolTable[index].kind == 1)
+			emit(lit, reg, 0, symbolTable[index].val);
+
+		reg++;
+		
 	}
 	else if(token == 3) // number
 	{
 		getToken();
+		
+		emit(lit, reg, 0, token);
+		
+		reg++;
 		
 		getToken();//get to semi colon	
 	}
@@ -472,22 +618,22 @@ int rOp()
 	switch(token)
 	{
 		 case eqlsym:
-            		return 19;  // 19 EQL
+            		return eql;  // 19 EQL
 			break;
 		case neqsym:
-			return 20;  // 20 NEQ
+			return neq;  // 20 NEQ
 			break;
 		case lessym:
-			return 21;  // 21 LSS
+			return lss;  // 21 LSS
 			break;
 		case leqsym:
-			return 22;  // 22 LEQ
+			return leq;  // 22 LEQ
 			break;
 		case gtrsym:
-			return 23;  // 23 GTR
+			return gtr;  // 23 GTR
 			break;
 		case geqsym:
-			return 24;  // 24 GEQ
+			return geq;  // 24 GEQ
 			break;
 		default:
 			return 0;	
@@ -495,16 +641,17 @@ int rOp()
 }
 
 // check to see if identifier is in the symbol table
-// returns 1 if ident found 0 otherwise
+// returns index if ident found -1 otherwise
 int identExists(char* ident)
 {
 	int i;
+	printf("TOKEN INDEX:%d TOKEN:%d\n", tokenIndex, token);
 	for(i = 0; i < symbolTableSize; i++)
 	{
-		if(strcmp(ident, symbolTable[i].name))
-			return 1;
+		if(strcmp(ident, symbolTable[i].name) == 0)
+			return i;
 	}
-	return 0;
+	return -1;
 }
 
 
