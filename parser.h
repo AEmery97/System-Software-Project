@@ -1,3 +1,7 @@
+
+#include "Compiler.h"
+
+
 typedef struct
 {
 	int kind;	//const = 1, var = 2, proc = 3 

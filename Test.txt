@@ -1,20 +1,25 @@
-const m = 7, n = 85; 
-var  i,x,y,z,q,r;  
-procedure mult; 
-  var a, b;  
-  begin 
-     a := x;  b := y; z := 0;   
-     while b > 0 do    
-     begin 
-        if odd x then z := z+a;       
-           a := 2*a; 
-           b := b/2;     
-     end   
-  end ;
+var result;
+
+    procedure fib;
+	var temp, arg;
+    begin
+	if arg <= 0 then result := 0; end;
+	if arg  = 1 then result := 1; end;
+	if arg  > 1 then
+		temp := result;
+		result := result + temp;
+	end;
+    end;
+
+    var n:int;
 
 begin
-  x := m;
-  y := n;
-  call mult;
-end
 
+    n := input;
+    while n <> 0 do
+        call fib;
+        output := result;
+        n := input;
+    end;
+
+end.
