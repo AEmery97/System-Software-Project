@@ -1,26 +1,17 @@
-// Andrew Emery -- an375652
-// COP3402: Systems Software -- Euripedes Montagne
+// COP 3402 - Systems Software
+// 3-24-17 | Austin Peace & Andrew Emery
 // Programming Assignment 1 -- P-Machine
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "Compiler.h"
 
-#define MAX_STACK_HEIGHT 2000
-#define MAX_CODE_LENGTH 500
-#define MAX_LEXI_LEVELS 3
-#define REGFILE_SIZE 16
-
-// PROTOYPES, STRUCTURES AND PARAMETERS.
-enum bool {false, true};
-enum ISA {lit=1, rtn, lod, sto, cal, inc, jmp, jpc, sio1, sio2, sio3,
-neg, add, sub, mul, dvd, odd, mod, eql, neq, lss, leq, gtr, geq};
+// STRUCTS, ENUMERATIONS, AND NATIVE PROTOTYPES.
 
 typedef struct {
 
-    int op; // opcode.
-    int r;  // register.
-    int l;  // L.
-    int m; // M.
+    int op;
+    int r;
+    int l;
+    int m;
 
 } instruction;
 
@@ -34,23 +25,23 @@ typedef struct {
 
 } machine;
 
+int virtualMachine(const char* filename);
 void buildMachine(machine* CPU);
-int readFile(instruction storage[MAX_CODE_LENGTH]);
-void interpret();
+int readFile(const char* filename, instruction storage[CODE_SIZE]);
+void interpret(instruction storage[CODE_SIZE], int length);
 void fetch(machine* CPU, instruction* storage);
 void execute(machine* CPU, int* stack, int* haltflag, int line, int instructions);
 int base(int l, int base, int* stack);
 
-
 // GLOBALS.
-const char* words[25] = {"nul", "lit", "rtn", "lod", "sto", "cal", "inc", "jmp", "jpc", "sio", "sio", "sio",
+const char* terms[25] = {"nul", "lit", "rtn", "lod", "sto", "cal", "inc", "jmp", "jpc", "sio", "sio", "sio",
 "neg", "add", "sub", "mul", "div", "odd", "mod", "eql", "neq", "lss", "leq", "gtr", "geq"};
 
 // MAIN PROGRAM.
-int main() {
+int virtualMachine(const char* filename) {
 
     // Main variables.
-    instruction storage[MAX_CODE_LENGTH];
+    instruction storage[CODE_SIZE];
     machine CPU;
     int stack[MAX_STACK_HEIGHT] = {0};
     int endflag = false;
@@ -67,7 +58,7 @@ int main() {
     } */
 
     // Read input file.
-    num_instructions = readFile(storage);
+    num_instructions = readFile(filename, storage);
     if (!num_instructions) return 0;
 
     // Output interpretation of code.
@@ -101,15 +92,10 @@ void buildMachine(machine* CPU) {
     return;
 }
 
-int readFile(instruction storage[MAX_CODE_LENGTH]) {
+int readFile(const char* filename, instruction storage[CODE_SIZE]) {
     // Local variables.
     FILE *fp = NULL;
-    char filename[FILENAME_MAX];
     int line = 0;
-
-    // Get file name from user.
-    printf("\nEnter file name: ");
-    scanf("%s", filename);
 
     // Read file (if it is found).
     fp = fopen(filename, "r");
@@ -126,7 +112,7 @@ int readFile(instruction storage[MAX_CODE_LENGTH]) {
     return line;
 }
 
-void interpret(instruction storage[MAX_CODE_LENGTH], int length) {
+void interpret(instruction storage[CODE_SIZE], int length) {
     // Local variables.
     int n;
 
@@ -135,7 +121,7 @@ void interpret(instruction storage[MAX_CODE_LENGTH], int length) {
 
     // Print until all code in storage has been read.
     for (n = 0; n < length; n++) {
-        printf("%4d %8s %8d %8d %8d\n", n, words[storage[n].op], storage[n].r, storage[n].l, storage[n].m);
+        printf("%4d %8s %8d %8d %8d\n", n, terms[storage[n].op], storage[n].r, storage[n].l, storage[n].m);
     }
 
     printf("\n\nInitial Values %24s %6s %6s", "pc", "bp", "sp");
@@ -292,15 +278,15 @@ void execute(machine* CPU, int* stack, int* haltflag, int line, int instructions
 
     }
     // Check state of the VM (finished after this instruction?).
-        if (CPU->PC >= instructions || CPU->IR.op == sio3) {
-            CPU->PC = 0;
-            CPU->SP = 0;
-            CPU->BP = 0;
-            *haltflag = true;
-        }
+    if (CPU->PC >= instructions || CPU->IR.op == sio3) {
+        CPU->PC = 0;
+        CPU->SP = 0;
+        CPU->BP = 0;
+        *haltflag = true;
+    }
 
     // Print current state of the machine.
-    printf("\n%3d %6s %6d %6d %6d %6d %6d %6d", line, words[CPU->IR.op], CPU->IR.r, CPU->IR.l, CPU->IR.m, CPU->PC, CPU->BP, CPU->SP);
+    printf("\n%3d %6s %6d %6d %6d %6d %6d %6d", line, terms[CPU->IR.op], CPU->IR.r, CPU->IR.l, CPU->IR.m, CPU->PC, CPU->BP, CPU->SP);
 
     // Print stack for current instruction.
     int i;
