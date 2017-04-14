@@ -1,3 +1,6 @@
++// COP 3402 - Systems Software
++// 3-24-17 | Austin Peace & Andrew Emery
+
 #include "parser.h"
 
 void error(int code)
@@ -79,6 +82,9 @@ void error(int code)
 			break;
 		case 25:
 			printf("This number is too large. (code:%d)\n", code);
+			break;
+		case 26:
+			printf("End expected. (code%d)\n", code);
 			break;
 		default:
 			printf("Unrecognized Error (code:%d)\n", code);
@@ -220,6 +226,21 @@ int getToken()
 		return -1;
 	
 	return 0;
+}
+
+int peekToken()
+{
+	int i = 0;
+	char num[i];
+
+	while(tokens[tokenIndex + i] != ' ')
+	{
+		num[i] = tokens[tokenIndex + i];
+		i++;
+	}
+	num[i] = '\0';
+
+	return atoi(num);
 }
 
 int addSymbolToTable(char* name, int type, int value, int l, int m)
@@ -376,6 +397,10 @@ int statement()
 		emit(sto, reg - 1, cLevel - symbolTable[index].level, symbolTable[index].addr - 1);
 		
 		reg--;
+	
+		if(token != semicolonsym) // semiColon
+			{ error(5); return -1;}
+
 	}
 
 	else if(token == callsym) // callsym
@@ -397,6 +422,10 @@ int statement()
 		emit(cal, 0, level, symbolTable[index].addr);
 		cLevel++;
 		
+		if(token != semicolonsym) // semiColon
+			{ error(5); return -1;}
+
+		
 	}
 	else if(token == beginsym) // beginsym
 	{
@@ -414,7 +443,7 @@ int statement()
 		}
 
 		if(token != endsym) // endsym
-		{ error(7); return -1;}
+		{ error(26); return -1;}
 		
 		getToken();
 	}
@@ -435,10 +464,25 @@ int statement()
 
 		if(statement() == -1)
 			return -1;
-
-		//ADD IN ELSE?
 		
 		code[cTemp].m = cx;
+
+		if(token != semicolonsym)
+			{error(5); return -1;}
+
+		//ADD IN ELSE?
+		if(peekToken() == elsesym)
+		{
+			getToken();//gets SemiColon
+			getToken();//gets elsesym
+
+			if(statement() == -1)
+				return -1;
+
+			if(token != semicolonsym)
+				{error(5); return -1;}
+		}
+		
 	}
 	else if(token == whilesym) // whilesym
 	{
